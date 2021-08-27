@@ -1,0 +1,356 @@
+
+R Notebook Math104 File Cleaning
+Written by: Sameer Sundrani
+Nigeria DHS Data 
+
+Contact sundrani@stanford.edu for more details. 
+
+All code is publicly available. Reproduce the datasets used following
+this R notebook. 
+
+Libaries
+```{r}
+library(tidyverse)
+library(purrr)
+library(haven)
+library(rlang)
+library(aod)
+library(ggpubr)
+library(foreign)
+```
+
+
+Part 1, get sas7bdat files from DHS. 
+```{r}
+#READ SAS7BDAT FILES
+births <- read_sas('NGBR7AFL.SAS7BDAT')
+couples <- read_sas('NGCR7AFL.SAS7BDAT')
+fieldworker <- read_sas('NGFW7AFL.SAS7BDAT')
+household <- read_sas('NGHR7AFL.SAS7BDAT')
+individual <- read_sas('NGIR7AFL.SAS7BDAT') #this is what we are using
+childrens <- read_sas('NGKR7AFL.SAS7BDAT')
+mens <- read_sas('NGMR7AFL.SAS7BDAT')
+householdmember <- read_sas('NGPR7AFL.SAS7BDAT')
+```
+
+```{r}
+#CREATE LABELS, tested 5/6/2021, seems to have overcounted, 672 vs observed 451
+
+#need to get amount to subtract off per person
+accident_deaths_pre <-  individual %>% 
+  select(CASEID, starts_with("MM16")) %>% 
+  mutate(MM16_01 = ifelse(MM16_01 %in% c(NA, 0, 2), 0, 1), 
+         MM16_02 = ifelse(MM16_02 %in% c(NA, 0, 2), 0, 1),
+         MM16_03 = ifelse(MM16_03 %in% c(NA, 0, 2), 0, 1),
+         MM16_04 = ifelse(MM16_04 %in% c(NA, 0, 2), 0, 1),
+         MM16_05 = ifelse(MM16_05 %in% c(NA, 0, 2), 0, 1),
+         MM16_06 = ifelse(MM16_06 %in% c(NA, 0, 2), 0, 1),
+         MM16_07 = ifelse(MM16_07 %in% c(NA, 0, 2), 0, 1),
+         MM16_08 = ifelse(MM16_08 %in% c(NA, 0, 2), 0, 1),
+         MM16_09 = ifelse(MM16_09 %in% c(NA, 0, 2), 0, 1),
+         MM16_10 = ifelse(MM16_10 %in% c(NA, 0, 2), 0, 1),
+         MM16_11 = ifelse(MM16_11 %in% c(NA, 0, 2), 0, 1),
+         MM16_12 = ifelse(MM16_12 %in% c(NA, 0, 2), 0, 1),
+         MM16_13 = ifelse(MM16_13 %in% c(NA, 0, 2), 0, 1),
+         MM16_14 = ifelse(MM16_14 %in% c(NA, 0, 2), 0, 1),
+         MM16_15 = ifelse(MM16_15 %in% c(NA, 0, 2), 0, 1),
+         MM16_16 = ifelse(MM16_16 %in% c(NA, 0, 2), 0, 1),
+         MM16_17 = ifelse(MM16_17 %in% c(NA, 0, 2), 0, 1),
+         MM16_18 = ifelse(MM16_18 %in% c(NA, 0, 2), 0, 1),
+         MM16_19 = ifelse(MM16_19 %in% c(NA, 0, 2), 0, 1),
+         MM16_20 = ifelse(MM16_20 %in% c(NA, 0, 2), 0, 1)
+  )
+
+accident_deaths <- accident_deaths_pre %>% 
+  mutate(numaccidents = rowSums(select(accident_deaths_pre, starts_with("MM16")), na.rm = TRUE)) %>% 
+  select(CASEID, numaccidents)
+
+summarise(accident_deaths, num_total = sum(numaccidents))
+
+ALL_LABELS_pre <- individual %>% 
+  select(CASEID, starts_with("MM9_") | starts_with("MM1_")) %>% 
+  mutate(MM1_01 = ifelse(MM1_01 %in% c(NA, 1), 0, 1), #1 = male
+         MM1_02 = ifelse(MM1_02 %in% c(NA, 1), 0, 1),
+         MM1_03 = ifelse(MM1_03 %in% c(NA, 1), 0, 1),
+         MM1_04 = ifelse(MM1_04 %in% c(NA, 1), 0, 1),
+         MM1_05 = ifelse(MM1_05 %in% c(NA, 1), 0, 1),
+         MM1_06 = ifelse(MM1_06 %in% c(NA, 1), 0, 1),
+         MM1_07 = ifelse(MM1_07 %in% c(NA, 1), 0, 1),
+         MM1_08 = ifelse(MM1_08 %in% c(NA, 1), 0, 1),
+         MM1_09 = ifelse(MM1_09 %in% c(NA, 1), 0, 1),
+         MM1_10 = ifelse(MM1_10 %in% c(NA, 1), 0, 1),
+         MM1_11 = ifelse(MM1_11 %in% c(NA, 1), 0, 1),
+         MM1_12 = ifelse(MM1_12 %in% c(NA, 1), 0, 1),
+         MM1_13 = ifelse(MM1_13 %in% c(NA, 1), 0, 1),
+         MM1_14 = ifelse(MM1_14 %in% c(NA, 1), 0, 1),
+         MM1_15 = ifelse(MM1_15 %in% c(NA, 1), 0, 1),
+         MM1_16 = ifelse(MM1_16 %in% c(NA, 1), 0, 1),
+         MM1_17 = ifelse(MM1_17 %in% c(NA, 1), 0, 1),
+         MM1_18 = ifelse(MM1_18 %in% c(NA, 1), 0, 1),
+         MM1_19 = ifelse(MM1_19 %in% c(NA, 1), 0, 1),
+         MM1_20 = ifelse(MM1_20 %in% c(NA, 1), 0, 1), 
+         MM9_01 = ifelse(MM9_01 %in% c(2, 4, 5, 6), 1, 0), 
+         MM9_02 = ifelse(MM9_02 %in% c(2, 4, 5, 6), 1, 0),
+         MM9_03 = ifelse(MM9_03 %in% c(2, 4, 5, 6), 1, 0),
+         MM9_04 = ifelse(MM9_04 %in% c(2, 4, 5, 6), 1, 0),
+         MM9_05 = ifelse(MM9_05 %in% c(2, 4, 5, 6), 1, 0),
+         MM9_06 = ifelse(MM9_06 %in% c(2, 4, 5, 6), 1, 0),
+         MM9_07 = ifelse(MM9_07 %in% c(2, 4, 5, 6), 1, 0),
+         MM9_08 = ifelse(MM9_08 %in% c(2, 4, 5, 6), 1, 0),
+         MM9_09 = ifelse(MM9_09 %in% c(2, 4, 5, 6), 1, 0),
+         MM9_10 = ifelse(MM9_10 %in% c(2, 4, 5, 6), 1, 0),
+         MM9_11 = ifelse(MM9_11 %in% c(2, 4, 5, 6), 1, 0),
+         MM9_12 = ifelse(MM9_12 %in% c(2, 4, 5, 6), 1, 0),
+         MM9_13 = ifelse(MM9_13 %in% c(2, 4, 5, 6), 1, 0),
+         MM9_14 = ifelse(MM9_14 %in% c(2, 4, 5, 6), 1, 0),
+         MM9_15 = ifelse(MM9_15 %in% c(2, 4, 5, 6), 1, 0),
+         MM9_16 = ifelse(MM9_16 %in% c(2, 4, 5, 6), 1, 0),
+         MM9_17 = ifelse(MM9_17 %in% c(2, 4, 5, 6), 1, 0),
+         MM9_18 = ifelse(MM9_18 %in% c(2, 4, 5, 6), 1, 0),
+         MM9_19 = ifelse(MM9_19 %in% c(2, 4, 5, 6), 1, 0),
+         MM9_20 = ifelse(MM9_20 %in% c(2, 4, 5, 6), 1, 0))
+
+ALL_LABELS <- ALL_LABELS_pre %>% 
+  mutate(numSisters = rowSums(select(ALL_LABELS_pre, starts_with("MM1")), na.rm = TRUE),
+         numMaternalDeaths = rowSums(select(ALL_LABELS_pre, starts_with("MM9")), na.rm = TRUE)) %>% 
+  select(CASEID, numSisters, numMaternalDeaths) 
+
+```
+
+```{r}
+#CREATE INDIVIDUAL DATA SETS
+
+region <- individual %>% 
+  select(CASEID, starts_with("V024")) %>% 
+  mutate(region = V024) %>% 
+  select(CASEID, region)
+
+domestic_violence_weight <- individual %>% 
+  select(CASEID, starts_with("D005")) %>% 
+  mutate(dv_weight = ifelse(is.na(D005), 0,  D005 / 1000000)) %>% 
+  select(CASEID, dv_weight)
+
+place <- individual %>% 
+  select(CASEID, starts_with("V025")) %>% 
+  mutate(place = V025) %>% 
+  select(CASEID, place)
+
+age <- individual %>% 
+  select(CASEID, starts_with("V012")) %>% 
+  mutate(age = V012) %>% 
+  select(CASEID, age)
+
+sons <- individual %>% 
+  select(CASEID, starts_with("V202")) %>% 
+  mutate(numSons = V202) %>% 
+  select(CASEID, numSons)
+
+daughters <- individual %>% 
+  select(CASEID, starts_with("V203")) %>% 
+  mutate(numDaughters = V203) %>% 
+  select(CASEID, numDaughters)
+
+sonsDied <- individual %>% 
+  select(CASEID, starts_with("V206")) %>% 
+  mutate(numSonsDied = V206) %>% 
+  select(CASEID, numSonsDied)
+
+daughtersDied <- individual %>% 
+  select(CASEID, starts_with("V207")) %>% 
+  mutate(numDaughtersDied = V207) %>% 
+  select(CASEID, numDaughtersDied)
+
+children <- individual %>% 
+  select(CASEID, starts_with("V208")) %>% 
+  mutate(numChildren = V208) %>% 
+  select(CASEID, numChildren)
+
+pregnant <- individual %>% 
+  select(CASEID, starts_with("V213")) %>% 
+  mutate(curPregnant = V213) %>% 
+  select(CASEID, curPregnant)
+
+pregnancy_complications <- individual %>% 
+  select(CASEID, starts_with("V228")) %>% 
+  mutate(terminated_before = V228) %>% 
+  select(CASEID, terminated_before)
+
+#test for amy
+antenatal_care_test <- individual %>% 
+  select(CASEID,  M2A_1:M2M_6)
+#
+
+antenatal_care <- individual %>% 
+  mutate(amount_antenatal_care = rowSums(select(., M2A_1:M2M_6), na.rm = TRUE)) %>% 
+  select(CASEID, amount_antenatal_care)
+
+first_child_first_care <- individual %>% 
+  select(CASEID, starts_with("M13_1")) %>% 
+  mutate(months_antenatalcare = ifelse(is.na(M13_1), -1, M13_1)) %>% #impute NA as -1
+  select(CASEID, months_antenatalcare)
+
+visits_during_pregnancy <- individual %>% 
+  select(CASEID, starts_with("M14_1")) %>% 
+  mutate(numVisitsPregnancy = ifelse(is.na(M14_1), -1, M14_1)) %>% #impute NA as -1
+  select(CASEID, numVisitsPregnancy)
+
+blood_pressure_antenatal <- individual %>% 
+  select(CASEID, starts_with("M42C_1")) %>% 
+  mutate(blood_pressure = ifelse(is.na(M42C_1), -1, M42C_1)) %>% #impute NA as -1
+  select(CASEID, blood_pressure)
+
+urine_antenatal <- individual %>% 
+  select(CASEID, starts_with("M42D_1")) %>% 
+  mutate(urine = ifelse(is.na(M42D_1), -1, M42D_1)) %>% #impute NA as -1
+  select(CASEID, urine)
+
+blood_antenatal <- individual %>% 
+  select(CASEID, starts_with("M42E_1")) %>% 
+  mutate(blood = ifelse(is.na(M42E_1), -1, M42E_1)) %>% #impute NA as -1
+  select(CASEID, blood)
+
+tetanus_during <- individual %>% 
+  select(CASEID, starts_with("M1_1")) %>% 
+  mutate(numTetanusDuring = ifelse(is.na(M1_1), -1, M1_1)) %>% #impute NA as -1
+  select(CASEID, numTetanusDuring)
+
+tetanus_before <- individual %>% 
+  select(CASEID, starts_with("M1A_1")) %>% 
+  mutate(numTetanusBefore = ifelse(is.na(M1A_1), -1, M1A_1)) %>% #impute NA as -1
+  select(CASEID, numTetanusBefore)
+
+iron_tabs_during <- individual %>% 
+  select(CASEID, starts_with("M45_1")) %>% 
+  mutate(numDaysGivenIron = ifelse(is.na(M45_1), -1, M45_1)) %>% #impute NA as -1
+  select(CASEID, numDaysGivenIron)
+
+iron_tabs_taken <- individual %>% 
+  select(CASEID, starts_with("M46_1")) %>% 
+  mutate(numDaysTakenIron = ifelse(is.na(M46_1), -1, M46_1)) %>% #impute NA as -1
+  select(CASEID, numDaysTakenIron)
+
+drugs_parasites <- individual %>% 
+  select(CASEID, starts_with("M60_1")) %>% 
+  mutate(drugs_parasites = ifelse(is.na(M60_1) | M60_1 == 8 , -1, M60_1)) %>% #impute NA as -1
+  select(CASEID, drugs_parasites)
+
+drugs_malaria <- individual %>% 
+  select(CASEID, starts_with("M49A_1")) %>% 
+  mutate(drugs_SP_Fansidar = ifelse(is.na(M49A_1) | M49A_1 == 8, -1, M49A_1)) %>% #impute NA as -1
+  select(CASEID, drugs_SP_Fansidar)
+
+child_size <- individual %>% 
+  select(CASEID, starts_with("M18")) %>% 
+  mutate(child_avg_size = rowMeans(select(., M18_1:M18_6), na.rm = TRUE), 
+         child_avg_size = ifelse(is.nan(child_avg_size), -1, child_avg_size)) %>% #impute NA as -1
+  select(CASEID, child_avg_size)
+child_size[is.na(child_size)] <- -1
+
+child_weight <- individual %>% 
+  select(CASEID, starts_with("M19")) %>% 
+  mutate(child_avg_weight = rowMeans(select(., M19_1:M19_6), na.rm = TRUE) / 1000) %>% #impute NA as -1
+  select(CASEID, child_avg_weight)
+child_weight[is.na(child_weight)] <- -1
+
+time_delivery <- individual %>% 
+  select(CASEID, starts_with("M61_1")) %>% 
+  mutate(time_spent = ifelse(is.na(M61_1), -1, M61_1)) %>% #impute NA as -1
+  select(CASEID, time_spent)
+
+c_section_pre <- individual %>% 
+  select(CASEID, starts_with("M17_")) %>% 
+  mutate(avg_c_sections = rowMeans(select(., M17_1:M17_6), na.rm = TRUE),
+    num_c_sections = rowSums(select(., M17_1:M17_6), na.rm = TRUE)) #impute NA as -1
+  c_section_pre[is.na(c_section_pre)] <- -1
+ 
+  c_section <- c_section_pre %>% 
+   mutate(num_c_sections = ifelse(avg_c_sections == -1, -1, num_c_sections)) %>% 
+   select(CASEID, num_c_sections)
+
+postnatal_check <- individual %>% 
+  select(CASEID, starts_with("M62")) %>% 
+  mutate(post_check = ifelse(is.na(M62_1), -1, M62_1)) %>% #impute NA as -1
+  select(CASEID, post_check)
+
+postdischarge_check <- individual %>% 
+  select(CASEID, starts_with("M66")) %>% 
+  mutate(discharge_check = ifelse(is.na(M66_1), -1, M66_1)) %>% #impute NA as -1
+  select(CASEID, discharge_check)
+
+
+period <- individual %>% 
+  select(CASEID, starts_with("M6_")) %>% 
+  mutate(avg_amenorrhea = rowMeans(select(., M6_1:M6_6), na.rm = TRUE)) %>% #impute NA as -1
+  select(CASEID, avg_amenorrhea)
+period[is.na(period)] <- -1
+
+
+sti <- individual %>% 
+  select(CASEID, starts_with("V763A")) %>% 
+  mutate(numSTI = ifelse(is.na(V763A), -1, V763A)) %>% #impute NA as -1
+  select(CASEID, numSTI)
+
+smoker <- individual %>% 
+  select(CASEID, starts_with("V463A")) %>% 
+  mutate(smokerStatus = ifelse(is.na(V463A), -1, V463A)) %>% #impute NA as -1
+  select(CASEID, smokerStatus)
+
+distance_to_health <- individual %>% 
+  select(CASEID, starts_with("V467D")) %>% 
+  mutate(distanceToFacility = ifelse(is.na(V467D), -1, V467D)) %>% #impute NA as -1
+  select(CASEID, distanceToFacility)
+
+go_alone <- individual %>% 
+  select(CASEID, starts_with("V467F")) %>% 
+  mutate(notGoAlone = ifelse(is.na(V467F), -1, V467F)) %>% #impute NA as -1
+  select(CASEID, notGoAlone)
+
+health_insurance <- individual %>% 
+  select(CASEID, starts_with("V481")) %>% 
+  mutate(hasHealthcare = ifelse(is.na(V481), -1, V481)) %>% #impute NA as -1
+  select(CASEID, hasHealthcare)
+
+num_siblings <- individual %>% 
+  select(CASEID, starts_with("MMC1")) %>% 
+  mutate(numSiblings = ifelse(is.na(MMC1), -1, MMC1)) %>% #impute NA as -1
+  select(CASEID, numSiblings)
+
+sexual_violence <- individual %>% 
+  select(CASEID, starts_with("D108")) %>% 
+  mutate(sexualViolence = ifelse(is.na(D108), -1, D108)) %>% #impute NA as -1
+  select(CASEID, sexualViolence)
+
+#coded as 1 - often, 2 - sometimes, 3 - not in last 12 months
+forced_sex <- individual %>% 
+  select(CASEID, starts_with("D105H")) %>% 
+  mutate(forcedSex = ifelse(is.na(D105H), -1, D105H)) %>% #impute NA as -1
+  select(CASEID, forcedSex)
+
+circumsized <- individual %>% 
+  select(CASEID, starts_with("G102")) %>% 
+  mutate(isCircumsized = ifelse(is.na(G102) | G102 == 8, -1, G102)) %>% #impute NA as -1
+  select(CASEID, isCircumsized)
+```
+
+Full dataset
+```{r}
+ALL_DATA <- list(region, domestic_violence_weight, place, age, sons, daughters, 
+                 sonsDied, daughtersDied, children, pregnant, pregnancy_complications, 
+                 antenatal_care, first_child_first_care, visits_during_pregnancy, 
+                 blood_pressure_antenatal, urine_antenatal, blood_antenatal,
+                 tetanus_during, tetanus_before, iron_tabs_during, iron_tabs_taken, 
+                 drugs_parasites, drugs_malaria, child_size, child_weight,time_delivery,
+                 c_section, postnatal_check, postdischarge_check, period, sti, 
+                 smoker,distance_to_health, go_alone, health_insurance, num_siblings, 
+                 sexual_violence, forced_sex, circumsized) %>% 
+  reduce(left_join, by = "CASEID") %>% 
+  left_join(ALL_LABELS, by = "CASEID") 
+
+summarise(ALL_DATA, numMaternalDeaths = sum(numMaternalDeaths)) #seem to have overcounted... 
+summarise(ALL_LABELS, numMaternalDeaths = sum(numMaternalDeaths))
+any(is.na(ALL_DATA)) #No NA in the data
+
+#save file: 
+write.csv(ALL_DATA, 'all_data.csv')
+```
+
