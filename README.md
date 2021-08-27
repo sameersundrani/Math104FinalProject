@@ -1,6 +1,6 @@
 # Math104FinalProject
 
-This repo contains the code for Linear Algebra Methods to Predict Regional Maternal Mortality Risk in Nigeria
+This repo contains the code for Linear Algebra Methods to Predict Maternal Mortality in Nigeria
 
 by Sameer Sundrani (sundrani)
 
